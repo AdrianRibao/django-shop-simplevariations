@@ -5,25 +5,40 @@ from shop.models.productmodel import Product
 from shop.util.cart import get_or_create_cart
 from shop.views.cart import CartDetails
 from shop_simplevariations.models import TextOption, CartItemTextOption
-
+from shop_simplevariations.forms import SimpleVariationsForm
+from django.core.urlresolvers import reverse
+from django.http import HttpResponseRedirect
+from django.utils.translation import ugettext as _ 
 
 class SimplevariationCartDetails(CartDetails):
     """Cart view that answers GET and POSTS request."""
 
     def post(self, *args, **kwargs):
-        #it starts similar to the original post method
         product_id = self.request.POST['add_item_id']
-        product_quantity = self.request.POST.get('add_item_quantity')
+        product = Product.objects.get(pk=product_id)
+        form = SimpleVariationsForm(product, self.request.POST)
+        if form.is_valid():
+            data = form.cleaned_data
+        else:
+            default_message = _(u'You must select some options')
+            next_url = self.request.POST.get('next', reverse('cart'))
+            message = self.request.POST.get('error_message', default_message)
+            url = u'%s?message=%s' % (next_url, message)
+            return HttpResponseRedirect(url)
+
+        ###
+        #it starts similar to the original post method
+        product_id = data['add_item_id']
+        product_quantity = data['add_item_quantity']
         if not product_quantity:
             product_quantity = 1
-        product = Product.objects.get(pk=product_id)
         cart_object = get_or_create_cart(self.request)
 
         #now we need to find out which options have been chosen by the user
         option_ids = []
         text_option_ids = {} # A dict of {TextOption.id:CartItemTextOption.text}
         for key in self.request.POST.keys():
-            if key.startswith('add_item_option_group_'):
+            if key.startswith('add_item_option_group_') and self.request.POST[key]!='':
                 option_ids.append(self.request.POST[key])
             elif key.startswith('add_item_text_option_'):
                 id = key.split('add_item_text_option_')[1]
@@ -71,7 +86,7 @@ class SimplevariationCartDetails(CartDetails):
 
         post = self.request.POST
         for key in self.request.POST.keys():
-            if key.startswith('add_item_option_group_'):
+            if key.startswith('add_item_option_group_') and post[key]:
                 option = Option.objects.get(pk=int(post[key]))
                 cartitem_option = CartItemOption()
                 cartitem_option.cartitem = cart_item

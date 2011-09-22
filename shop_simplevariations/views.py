@@ -2,6 +2,7 @@ from .models import Option, CartItemOption
 from django.db.models import Q
 from shop.models.cartmodel import CartItem
 from shop.models.productmodel import Product
+from shop.views import ShopDetailView
 from shop.util.cart import get_or_create_cart
 from shop.views.cart import CartDetails
 from shop_simplevariations.models import TextOption, CartItemTextOption
@@ -103,3 +104,19 @@ class SimplevariationCartDetails(CartDetails):
                 cito.save()
                 
         return self.success()
+
+
+class ShopDetailWithVariationsView(ShopDetailView):
+    form_class = SimpleVariationsForm
+    
+    def get_form_class(self):
+        return self.form_class
+
+    def get_context_data(self, *args, **kwargs):
+
+        # Call the base implementation first to get a context
+        context = super(ShopDetailView, self).get_context_data(*args, **kwargs)
+        form_class = self.get_form_class()
+        form = form_class(self.object)
+        context['form'] = form
+        return context
